@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit, Press_Start_2P } from "next/font/google";
 import "./globals.css";
 
@@ -15,7 +15,21 @@ const pressStart2P = Press_Start_2P({
 
 export const metadata: Metadata = {
   title: "Road Rage Runner",
-  description: "Browser-based endless driving game",
+  description: "Browser-based endless driving game — dodge obstacles, set high scores",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Road Rage Runner",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({
