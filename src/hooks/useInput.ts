@@ -35,11 +35,17 @@ export function useInput() {
     }
 
     function handleTouchStart(e: TouchEvent) {
+      e.preventDefault();
       const touch = e.touches[0];
       touchStartRef.current = { x: touch.clientX, y: touch.clientY };
     }
 
+    function handleTouchMove(e: TouchEvent) {
+      e.preventDefault();
+    }
+
     function handleTouchEnd(e: TouchEvent) {
+      e.preventDefault();
       if (!touchStartRef.current) return;
       const touch = e.changedTouches[0];
       const dx = touch.clientX - touchStartRef.current.x;
@@ -49,23 +55,37 @@ export function useInput() {
       // Check if it's a swipe (horizontal movement > threshold and > vertical)
       if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
         enqueue(dx > 0 ? 'right' : 'left');
+        tryHaptic();
       } else if (Math.abs(dx) <= SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
         // Tap — use left/right half of screen
         const screenMid = window.innerWidth / 2;
         enqueue(touch.clientX < screenMid ? 'left' : 'right');
+        tryHaptic();
       }
     }
 
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd, { passive: false });
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
   }, [enqueue]);
 
   return { consumeInput };
+}
+
+function tryHaptic(): void {
+  try {
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+  } catch {
+    // Vibration API not available
+  }
 }
