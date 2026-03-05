@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useCallback } from 'react';
-import { CANVAS } from '@/game/constants';
+import { CANVAS, EFFECTS } from '@/game/constants';
 import { drawRoad, getCanvasMetrics } from '@/game/road';
 import { drawCar } from '@/game/car';
 import { drawObstacle } from '@/game/obstacles';
@@ -70,7 +70,7 @@ export default function GameCanvas({ onGameDataUpdate }: GameCanvasProps) {
   const handleUpdate = useCallback(
     (deltaTime: number) => {
       const input = consumeInput();
-      gameDataRef.current = updateGame(gameDataRef.current, deltaTime, input);
+      gameDataRef.current = updateGame(gameDataRef.current, deltaTime, input, metricsRef.current);
       onGameDataUpdate?.(gameDataRef.current);
     },
     [consumeInput, onGameDataUpdate]
@@ -88,6 +88,14 @@ export default function GameCanvas({ onGameDataUpdate }: GameCanvasProps) {
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, metrics.width, metrics.height);
+
+    // Screen shake
+    if (data.screenShake > 0) {
+      const shakeIntensity = (data.screenShake / EFFECTS.SCREEN_SHAKE_DURATION_MS) * EFFECTS.SCREEN_SHAKE_AMPLITUDE;
+      const shakeX = (Math.random() - 0.5) * 2 * shakeIntensity;
+      const shakeY = (Math.random() - 0.5) * 2 * shakeIntensity;
+      ctx.translate(shakeX, shakeY);
+    }
 
     drawRoad(ctx, metrics, data.scrollOffset);
 
