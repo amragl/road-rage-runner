@@ -5,6 +5,7 @@ import { CANVAS, EFFECTS } from '@/game/constants';
 import { drawRoad, getCanvasMetrics } from '@/game/road';
 import { drawCar } from '@/game/car';
 import { drawObstacle } from '@/game/obstacles';
+import { drawWarnings } from '@/game/warnings';
 import { initGameData, updateGame } from '@/game/engine';
 import { useInput } from '@/hooks/useInput';
 import { useGameLoop } from '@/hooks/useGameLoop';
@@ -105,6 +106,9 @@ export default function GameCanvas({ onGameDataUpdate }: GameCanvasProps) {
     }
 
     drawCar(ctx, data.car, metrics);
+
+    // Draw warnings on top
+    drawWarnings(ctx, data.warnings, metrics);
   }, []);
 
   useGameLoop(handleUpdate, handleRender, true);
