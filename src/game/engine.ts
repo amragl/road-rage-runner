@@ -1,5 +1,6 @@
 import { CAR, SPEED } from './constants';
 import { createCar, updateCar } from './car';
+import { trySpawnObstacle, updateObstacles } from './obstacles';
 import type { GameData, InputAction } from './types';
 
 export function initGameData(): GameData {
@@ -76,6 +77,22 @@ export function updateGame(
     updated.car,
     hasOilSlick ? null : input,
     deltaTime
+  );
+
+  // Spawn obstacles
+  const now = Date.now();
+  const newObstacle = trySpawnObstacle(updated, now);
+  if (newObstacle) {
+    updated.obstacles = [...updated.obstacles, newObstacle];
+    updated.lastObstacleSpawnTime = now;
+  }
+
+  // Update obstacles (move down, remove off-screen)
+  updated.obstacles = updateObstacles(
+    updated.obstacles,
+    effectiveSpeed,
+    deltaTime,
+    800 // approximate canvas height, will be refined
   );
 
   // Clean up expired effects
