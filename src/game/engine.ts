@@ -3,6 +3,7 @@ import { createCar, updateCar } from './car';
 import { trySpawnObstacle, updateObstacles } from './obstacles';
 import { checkCollision } from './collision';
 import { updateWarnings } from './warnings';
+import { calculateScore, checkSurvivalBonuses } from './scoring';
 import type { GameData, InputAction, CanvasMetrics, ActiveEffect } from './types';
 
 export function initGameData(): GameData {
@@ -170,12 +171,16 @@ export function updateGame(
     updated.screenShake = Math.max(0, updated.screenShake - deltaTime);
   }
 
+  // Update score
+  const withBonuses = checkSurvivalBonuses(updated);
+  withBonuses.score = calculateScore(withBonuses);
+
   // Check game over
-  if (updated.car.lives <= 0) {
-    updated.gameState = 'GAME_OVER';
+  if (withBonuses.car.lives <= 0) {
+    withBonuses.gameState = 'GAME_OVER';
   }
 
-  return updated;
+  return withBonuses;
 }
 
 function applyDamage(data: GameData, now: number): void {
