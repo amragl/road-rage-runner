@@ -5,6 +5,7 @@ import GameCanvas from '@/components/GameCanvas';
 import HUD from '@/components/HUD';
 import StartScreen from '@/components/StartScreen';
 import GameOver from '@/components/GameOver';
+import Leaderboard from '@/components/Leaderboard';
 import { initGameData } from '@/game/engine';
 import { COLORS } from '@/game/constants';
 import type { GameData } from '@/game/types';
@@ -89,8 +90,10 @@ export default function GamePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePause, handleResume, handleStart]);
 
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastSubmittedName, setLastSubmittedName] = useState<string | undefined>();
 
   const handleSubmitScoreWithState = useCallback(
     async (name: string) => {
@@ -98,17 +101,22 @@ export default function GamePage() {
       await handleSubmitScore(name);
       setIsSubmitting(false);
       setScoreSubmitted(true);
+      setLastSubmittedName(name);
     },
     [handleSubmitScore]
   );
 
   const handleRetryWithReset = useCallback(() => {
     setScoreSubmitted(false);
+    setShowLeaderboard(false);
+    setLastSubmittedName(undefined);
     handleRetry();
   }, [handleRetry]);
 
   const handleMenuWithReset = useCallback(() => {
     setScoreSubmitted(false);
+    setShowLeaderboard(false);
+    setLastSubmittedName(undefined);
     handleMenu();
   }, [handleMenu]);
 
@@ -124,7 +132,7 @@ export default function GamePage() {
       {displayData.gameState === 'MENU' && (
         <StartScreen
           onStart={handleStart}
-          onShowLeaderboard={() => {}}
+          onShowLeaderboard={() => setShowLeaderboard(true)}
         />
       )}
 
@@ -186,6 +194,13 @@ export default function GamePage() {
           onSubmitScore={handleSubmitScoreWithState}
           isSubmitting={isSubmitting}
           submitted={scoreSubmitted}
+        />
+      )}
+      {/* Leaderboard overlay */}
+      {showLeaderboard && (
+        <Leaderboard
+          onClose={() => setShowLeaderboard(false)}
+          highlightName={lastSubmittedName}
         />
       )}
     </div>
