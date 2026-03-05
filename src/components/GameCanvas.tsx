@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import { CANVAS } from '@/game/constants';
 import { drawRoad, getCanvasMetrics } from '@/game/road';
 import { drawCar } from '@/game/car';
+import { drawObstacle } from '@/game/obstacles';
 import { initGameData, updateGame } from '@/game/engine';
 import { useInput } from '@/hooks/useInput';
 import { useGameLoop } from '@/hooks/useGameLoop';
@@ -89,6 +90,12 @@ export default function GameCanvas({ onGameDataUpdate }: GameCanvasProps) {
     ctx.clearRect(0, 0, metrics.width, metrics.height);
 
     drawRoad(ctx, metrics, data.scrollOffset);
+
+    // Draw obstacles
+    for (const obstacle of data.obstacles) {
+      drawObstacle(ctx, obstacle, metrics);
+    }
+
     drawCar(ctx, data.car, metrics);
   }, []);
 
