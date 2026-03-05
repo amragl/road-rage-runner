@@ -1,20 +1,23 @@
 'use client';
 
 import { useRef, useEffect, useCallback } from 'react';
-import { CANVAS, SPEED } from '@/game/constants';
+import { CANVAS } from '@/game/constants';
 import { drawRoad, getCanvasMetrics } from '@/game/road';
-import { drawCar, createCar, updateCar } from '@/game/car';
+import { drawCar } from '@/game/car';
+import { initGameData, updateGame } from '@/game/engine';
 import { useInput } from '@/hooks/useInput';
-import type { CanvasMetrics } from '@/game/types';
+import { useGameLoop } from '@/hooks/useGameLoop';
+import type { CanvasMetrics, GameData } from '@/game/types';
 
-export default function GameCanvas() {
+interface GameCanvasProps {
+  onGameDataUpdate?: (data: GameData) => void;
+}
+
+export default function GameCanvas({ onGameDataUpdate }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const scrollOffsetRef = useRef(0);
-  const carRef = useRef(createCar());
-  const animFrameRef = useRef<number>(0);
+  const gameDataRef = useRef<GameData>(initGameData());
   const metricsRef = useRef<CanvasMetrics | null>(null);
-  const lastTimeRef = useRef<number>(0);
   const { consumeInput } = useInput();
 
   const resizeCanvas = useCallback(() => {
@@ -53,51 +56,43 @@ export default function GameCanvas() {
 
   useEffect(() => {
     resizeCanvas();
+    const observer = new ResizeObserver(() => resizeCanvas());
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [resizeCanvas]);
 
-    const observer = new ResizeObserver(() => {
-      resizeCanvas();
-    });
+  // Start the game immediately for now
+  useEffect(() => {
+    gameDataRef.current = { ...gameDataRef.current, gameState: 'PLAYING' };
+  }, []);
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-
-    function tick(timestamp: number) {
-      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
-      const deltaTime = Math.min(timestamp - lastTimeRef.current, 50);
-      lastTimeRef.current = timestamp;
-
-      // Update car with input
+  const handleUpdate = useCallback(
+    (deltaTime: number) => {
       const input = consumeInput();
-      carRef.current = updateCar(carRef.current, input, deltaTime);
+      gameDataRef.current = updateGame(gameDataRef.current, deltaTime, input);
+      onGameDataUpdate?.(gameDataRef.current);
+    },
+    [consumeInput, onGameDataUpdate]
+  );
 
-      // Scroll road
-      scrollOffsetRef.current += SPEED.INITIAL;
+  const handleRender = useCallback(() => {
+    const canvas = canvasRef.current;
+    const metrics = metricsRef.current;
+    const data = gameDataRef.current;
+    if (!canvas || !metrics) return;
 
-      // Render
-      const canvas = canvasRef.current;
-      const metrics = metricsRef.current;
-      if (canvas && metrics) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          const dpr = window.devicePixelRatio || 1;
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          ctx.clearRect(0, 0, metrics.width, metrics.height);
-          drawRoad(ctx, metrics, scrollOffsetRef.current);
-          drawCar(ctx, carRef.current, metrics);
-        }
-      }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-      animFrameRef.current = requestAnimationFrame(tick);
-    }
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, metrics.width, metrics.height);
 
-    animFrameRef.current = requestAnimationFrame(tick);
+    drawRoad(ctx, metrics, data.scrollOffset);
+    drawCar(ctx, data.car, metrics);
+  }, []);
 
-    return () => {
-      cancelAnimationFrame(animFrameRef.current);
-      observer.disconnect();
-    };
-  }, [resizeCanvas, consumeInput]);
+  useGameLoop(handleUpdate, handleRender, true);
 
   return (
     <div
