@@ -7,6 +7,14 @@ import { drawCar } from '@/game/car';
 import { drawObstacle } from '@/game/obstacles';
 import { drawWarnings } from '@/game/warnings';
 import { updateGame } from '@/game/engine';
+import {
+  spawnDustParticles,
+  updateParticles,
+  drawParticles,
+  drawSpeedLines,
+  drawVignette,
+  clearParticles,
+} from '@/game/effects';
 import { useInput } from '@/hooks/useInput';
 import { useGameLoop } from '@/hooks/useGameLoop';
 import type { CanvasMetrics, GameData, GameState } from '@/game/types';
@@ -61,7 +69,10 @@ export default function GameCanvas({ gameState, onGameDataUpdate, gameDataRef }:
     resizeCanvas();
     const observer = new ResizeObserver(() => resizeCanvas());
     if (containerRef.current) observer.observe(containerRef.current);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      clearParticles();
+    };
   }, [resizeCanvas]);
 
   const handleUpdate = useCallback(
@@ -69,19 +80,18 @@ export default function GameCanvas({ gameState, onGameDataUpdate, gameDataRef }:
       const input = consumeInput();
       gameDataRef.current = updateGame(gameDataRef.current, deltaTime, input, metricsRef.current);
       onGameDataUpdate(gameDataRef.current);
+
+      // Update visual effects
+      const metrics = metricsRef.current;
+      if (metrics) {
+        spawnDustParticles(metrics, gameDataRef.current.speed);
+        updateParticles(deltaTime);
+      }
     },
     [consumeInput, onGameDataUpdate, gameDataRef]
   );
 
-  const handleRender = useCallback(() => {
-    const canvas = canvasRef.current;
-    const metrics = metricsRef.current;
-    const data = gameDataRef.current;
-    if (!canvas || !metrics) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
+  const renderScene = useCallback((ctx: CanvasRenderingContext2D, metrics: CanvasMetrics, data: GameData) => {
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, metrics.width, metrics.height);
@@ -96,18 +106,41 @@ export default function GameCanvas({ gameState, onGameDataUpdate, gameDataRef }:
 
     drawRoad(ctx, metrics, data.scrollOffset);
 
+    // Speed lines in margins
+    drawSpeedLines(ctx, metrics, data.speed, data.scrollOffset);
+
     for (const obstacle of data.obstacles) {
       drawObstacle(ctx, obstacle, metrics);
     }
 
     drawCar(ctx, data.car, metrics);
+
+    // Particles
+    drawParticles(ctx);
+
+    // Warnings
     drawWarnings(ctx, data.warnings, metrics);
-  }, [gameDataRef]);
+
+    // Vignette at high speed
+    drawVignette(ctx, metrics, data.speed);
+  }, []);
+
+  const handleRender = useCallback(() => {
+    const canvas = canvasRef.current;
+    const metrics = metricsRef.current;
+    const data = gameDataRef.current;
+    if (!canvas || !metrics) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    renderScene(ctx, metrics, data);
+  }, [gameDataRef, renderScene]);
 
   const isRunning = gameState === 'PLAYING';
   useGameLoop(handleUpdate, handleRender, isRunning);
 
-  // Still render a frame even when paused/game over
+  // Render static frame when not running
   useEffect(() => {
     if (!isRunning) {
       const canvas = canvasRef.current;
@@ -118,16 +151,9 @@ export default function GameCanvas({ gameState, onGameDataUpdate, gameDataRef }:
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      const dpr = window.devicePixelRatio || 1;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, metrics.width, metrics.height);
-      drawRoad(ctx, metrics, data.scrollOffset);
-      for (const obstacle of data.obstacles) {
-        drawObstacle(ctx, obstacle, metrics);
-      }
-      drawCar(ctx, data.car, metrics);
+      renderScene(ctx, metrics, data);
     }
-  }, [isRunning, gameDataRef]);
+  }, [isRunning, gameDataRef, renderScene]);
 
   return (
     <div
