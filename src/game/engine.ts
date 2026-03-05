@@ -2,6 +2,7 @@ import { CAR, SPEED, EFFECTS, OBSTACLES } from './constants';
 import { createCar, updateCar } from './car';
 import { trySpawnObstacle, updateObstacles } from './obstacles';
 import { checkCollision } from './collision';
+import { updateWarnings } from './warnings';
 import type { GameData, InputAction, CanvasMetrics, ActiveEffect } from './types';
 
 export function initGameData(): GameData {
@@ -97,6 +98,11 @@ export function updateGame(
     deltaTime,
     canvasHeight
   );
+
+  // Update warnings
+  if (metrics) {
+    updated.warnings = updateWarnings(updated, metrics);
+  }
 
   // Collision detection
   if (metrics) {
