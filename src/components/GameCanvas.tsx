@@ -6,19 +6,20 @@ import { drawRoad, getCanvasMetrics } from '@/game/road';
 import { drawCar } from '@/game/car';
 import { drawObstacle } from '@/game/obstacles';
 import { drawWarnings } from '@/game/warnings';
-import { initGameData, updateGame } from '@/game/engine';
+import { updateGame } from '@/game/engine';
 import { useInput } from '@/hooks/useInput';
 import { useGameLoop } from '@/hooks/useGameLoop';
-import type { CanvasMetrics, GameData } from '@/game/types';
+import type { CanvasMetrics, GameData, GameState } from '@/game/types';
 
 interface GameCanvasProps {
-  onGameDataUpdate?: (data: GameData) => void;
+  gameState: GameState;
+  onGameDataUpdate: (data: GameData) => void;
+  gameDataRef: React.MutableRefObject<GameData>;
 }
 
-export default function GameCanvas({ onGameDataUpdate }: GameCanvasProps) {
+export default function GameCanvas({ gameState, onGameDataUpdate, gameDataRef }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const gameDataRef = useRef<GameData>(initGameData());
   const metricsRef = useRef<CanvasMetrics | null>(null);
   const { consumeInput } = useInput();
 
@@ -63,18 +64,13 @@ export default function GameCanvas({ onGameDataUpdate }: GameCanvasProps) {
     return () => observer.disconnect();
   }, [resizeCanvas]);
 
-  // Start the game immediately for now
-  useEffect(() => {
-    gameDataRef.current = { ...gameDataRef.current, gameState: 'PLAYING' };
-  }, []);
-
   const handleUpdate = useCallback(
     (deltaTime: number) => {
       const input = consumeInput();
       gameDataRef.current = updateGame(gameDataRef.current, deltaTime, input, metricsRef.current);
-      onGameDataUpdate?.(gameDataRef.current);
+      onGameDataUpdate(gameDataRef.current);
     },
-    [consumeInput, onGameDataUpdate]
+    [consumeInput, onGameDataUpdate, gameDataRef]
   );
 
   const handleRender = useCallback(() => {
@@ -100,18 +96,38 @@ export default function GameCanvas({ onGameDataUpdate }: GameCanvasProps) {
 
     drawRoad(ctx, metrics, data.scrollOffset);
 
-    // Draw obstacles
     for (const obstacle of data.obstacles) {
       drawObstacle(ctx, obstacle, metrics);
     }
 
     drawCar(ctx, data.car, metrics);
-
-    // Draw warnings on top
     drawWarnings(ctx, data.warnings, metrics);
-  }, []);
+  }, [gameDataRef]);
 
-  useGameLoop(handleUpdate, handleRender, true);
+  const isRunning = gameState === 'PLAYING';
+  useGameLoop(handleUpdate, handleRender, isRunning);
+
+  // Still render a frame even when paused/game over
+  useEffect(() => {
+    if (!isRunning) {
+      const canvas = canvasRef.current;
+      const metrics = metricsRef.current;
+      const data = gameDataRef.current;
+      if (!canvas || !metrics) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, metrics.width, metrics.height);
+      drawRoad(ctx, metrics, data.scrollOffset);
+      for (const obstacle of data.obstacles) {
+        drawObstacle(ctx, obstacle, metrics);
+      }
+      drawCar(ctx, data.car, metrics);
+    }
+  }, [isRunning, gameDataRef]);
 
   return (
     <div
