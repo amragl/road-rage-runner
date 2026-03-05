@@ -3,7 +3,8 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { CANVAS, SPEED } from '@/game/constants';
 import { drawRoad, getCanvasMetrics } from '@/game/road';
-import { drawCar, createCar } from '@/game/car';
+import { drawCar, createCar, updateCar } from '@/game/car';
+import { useInput } from '@/hooks/useInput';
 import type { CanvasMetrics } from '@/game/types';
 
 export default function GameCanvas() {
@@ -13,6 +14,8 @@ export default function GameCanvas() {
   const carRef = useRef(createCar());
   const animFrameRef = useRef<number>(0);
   const metricsRef = useRef<CanvasMetrics | null>(null);
+  const lastTimeRef = useRef<number>(0);
+  const { consumeInput } = useInput();
 
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -59,9 +62,19 @@ export default function GameCanvas() {
       observer.observe(containerRef.current);
     }
 
-    function tick() {
+    function tick(timestamp: number) {
+      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+      const deltaTime = Math.min(timestamp - lastTimeRef.current, 50);
+      lastTimeRef.current = timestamp;
+
+      // Update car with input
+      const input = consumeInput();
+      carRef.current = updateCar(carRef.current, input, deltaTime);
+
+      // Scroll road
       scrollOffsetRef.current += SPEED.INITIAL;
 
+      // Render
       const canvas = canvasRef.current;
       const metrics = metricsRef.current;
       if (canvas && metrics) {
@@ -84,7 +97,7 @@ export default function GameCanvas() {
       cancelAnimationFrame(animFrameRef.current);
       observer.disconnect();
     };
-  }, [resizeCanvas]);
+  }, [resizeCanvas, consumeInput]);
 
   return (
     <div
