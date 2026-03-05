@@ -1,0 +1,22 @@
+{
+  "memory": {
+    "project": "Road Rage Runner — browser-based endless driving game",
+    "tech": "Next.js 14, TypeScript, HTML5 Canvas, Tailwind CSS, Vercel KV",
+    "key_files": [
+      "CLAUDE.md — primary project spec and architecture",
+      "docs/GAME_DESIGN.md — detailed game mechanics",
+      "docs/API_SPEC.md — leaderboard API specification",
+      "docs/CONSTANTS_REFERENCE.md — all tuning values",
+      "docs/PROMPT_PLAN.md — step-by-step implementation prompts"
+    ],
+    "rules": [
+      "Always read CLAUDE.md before starting any task",
+      "No magic numbers — use src/game/constants.ts for all values",
+      "Game logic in src/game/, React UI in src/components/ — never mix",
+      "Use useRef for game state in render loop, not useState",
+      "Canvas rendering must target 60fps on mobile",
+      "TypeScript strict mode — no 'any' types",
+      "Test after each implementation step"
+    ]
+  }
+}
